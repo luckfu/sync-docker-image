@@ -35,7 +35,18 @@ jobs:
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
           df -h
       # -----------------------------------
-
+      - name: Optimize Network and Space
+        run: |
+          # 1. 清理空间
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          
+          # 2. 尝试调整 MTU (针对某些网络环境下的长链接优化)
+          # sudo ifconfig eth0 mtu 1400 
+          
+          echo "Current Disk Space:"
+          df -h
+          
       - name: Copy Docker Images
         uses: ikrong/docker-sync-action@main
         with:
