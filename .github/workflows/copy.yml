@@ -24,11 +24,25 @@ jobs:
   copy:
     runs-on: ubuntu-latest
     steps:
-    - name: Copy Docker Images
-      uses: ikrong/docker-sync-action@main
-      with:
-        source: ${{ github.event.inputs.source }}
-        source-credential: ${{ secrets.SOURCE_CREDENTIAL }}
-        destination: ${{ github.event.inputs.destination }}
-        destination-credential: ${{ secrets.DESTINATION_CREDENTIAL }}
-        copy: "${{ github.event.inputs.source_repo }} ${{ github.event.inputs.destination_repo }}"
+      # --- 新增步骤：清理预装软件腾出空间 ---
+      - name: Free Disk Space (Maximize space for large images)
+        run: |
+          echo "Cleaning up unnecessary software to free up space..."
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          df -h
+      # -----------------------------------
+
+      - name: Copy Docker Images
+        uses: ikrong/docker-sync-action@main
+        with:
+          source: ${{ github.event.inputs.source }}
+          source-credential: ${{ secrets.SOURCE_CREDENTIAL }}
+          destination: ${{ github.event.inputs.destination }}
+          destination-credential: ${{ secrets.DESTINATION_CREDENTIAL }}
+          # 建议加上 --src-tls-verify=false 或类似参数（如果遇到证书问题）
+          # 但基本保持你原来的配置即可
+          copy: "${{ github.event.inputs.source_repo }} ${{ github.event.inputs.destination_repo }}"
