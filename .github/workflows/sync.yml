@@ -10,14 +10,22 @@ on:
       destination:
         description: '目标源 (Registry)'
         required: true
-        default: 'registry.cn-beijing.aliyuncs.com'
+        default: 'registry.cn-shanghai.aliyuncs.com'
       source_repo:
-        description: '仓库 (格式 repo)'
-        required: true
+        description: '仓库 (格式 repo:tag)'
+        required: false
         default: ''
       destination_scope:
-        description: '目标Scope (格式 scope)'
-        required: true
+        description: '目标Scope (格式 scope/repo:tag)'
+        required: false
+        default: ''
+      sync:
+        description: 'Sync多tag格式: "repo scope;repo2 scope2"'
+        required: false
+        default: ''
+      copy:
+        description: 'Copy单tag格式: "repo:tag scope/repo:tag;repo2:tag scope/repo2:tag"'
+        required: false
         default: ''
 
 jobs:
@@ -31,4 +39,6 @@ jobs:
         source-credential: ${{ secrets.SOURCE_CREDENTIAL }}
         destination: ${{ github.event.inputs.destination }}
         destination-credential: ${{ secrets.DESTINATION_CREDENTIAL }}
-        sync: "${{ github.event.inputs.source_repo }} ${{ github.event.inputs.destination_scope }}"
+        sync: ${{ github.event.inputs.sync }}
+        copy: ${{ github.event.inputs.copy }}
+
