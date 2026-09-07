@@ -28,26 +28,23 @@ jobs:
       - name: Free Disk Space
         run: |
           echo "Cleaning up unnecessary software to free up space..."
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf "/usr/local/share/boost"
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
           df -h
 
       - name: Login and Copy Docker Image
         run: |
-          # 1. 登录源镜像仓库（如果配置了 SOURCE_CREDENTIAL）
-          if [ -n "${{ secrets.SOURCE_CREDENTIAL }}" ]; then
-            echo "${{ secrets.SOURCE_CREDENTIAL }}" | skopeo login --username "$(echo '${{ secrets.SOURCE_CREDENTIAL }}' | cut -d: -f1)" --password-stdin ${{ github.event.inputs.source }}
-          fi
-
-          # 2. 登录目标镜像仓库（阿里云）
+          # 解析并登录目标镜像仓库（适配 用户名:密码 或纯密码格式）
           if [ -n "${{ secrets.DESTINATION_CREDENTIAL }}" ]; then
-            echo "${{ secrets.DESTINATION_CREDENTIAL }}" | skopeo login --username "$(echo '${{ secrets.DESTINATION_CREDENTIAL }}' | cut -d: -f1)" --password-stdin ${{ github.event.inputs.destination }}
+            if echo "${{ secrets.DESTINATION_CREDENTIAL }}" | grep -q ':'; then
+              IFS=':' read -r dest_user dest_pass <<< "${{ secrets.DESTINATION_CREDENTIAL }}"
+              echo "$dest_pass" | skopeo login --username "$dest_user" --password-stdin ${{ github.event.inputs.destination }}
+            else
+              # 如果你的 SECRET 里面只有密码，请将下面的 "你的阿里云账号名" 替换为实际的账号名
+              echo "${{ secrets.DESTINATION_CREDENTIAL }}" | skopeo login --username "你的阿里云账号名" --password-stdin ${{ github.event.inputs.destination }}
+            fi
           fi
 
-          # 3. 使用 --format docker 参数强制转换为 Docker 格式，彻底解决阿里云不兼容 OCI 空清单的问题
+          # 核心修复：通过 --format docker 过滤掉阿里云不支持的 OCI 空清单格式
           skopeo copy --format docker --all \
             docker://${{ github.event.inputs.source }}/${{ github.event.inputs.source_repo }} \
             docker://${{ github.event.inputs.destination }}/${{ github.event.inputs.destination_repo }}
