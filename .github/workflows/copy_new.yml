@@ -1,4 +1,4 @@
-name: Copy Docker Image
+name: Copy Docker Image new
 run-name: Copy ${{ inputs.source_repo }} to ${{ inputs.destination_repo }}
 
 on: 
