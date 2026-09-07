@@ -32,19 +32,30 @@ jobs:
           df -h
 
       - name: Login and Copy Docker Image
+        env:
+          SRC_REG: ${{ github.event.inputs.source }}
+          SRC_REPO: ${{ github.event.inputs.source_repo }}
+          SRC_CRED: ${{ secrets.SOURCE_CREDENTIAL }}
+          DEST_REG: ${{ github.event.inputs.destination }}
+          DEST_REPO: ${{ github.event.inputs.destination_repo }}
+          DEST_CRED: ${{ secrets.DESTINATION_CREDENTIAL }}
         run: |
-          # 解析并登录目标镜像仓库（适配 用户名:密码 或纯密码格式）
-          if [ -n "${{ secrets.DESTINATION_CREDENTIAL }}" ]; then
-            if echo "${{ secrets.DESTINATION_CREDENTIAL }}" | grep -q ':'; then
-              IFS=':' read -r dest_user dest_pass <<< "${{ secrets.DESTINATION_CREDENTIAL }}"
-              echo "$dest_pass" | skopeo login --username "$dest_user" --password-stdin ${{ github.event.inputs.destination }}
-            else
-              # 如果你的 SECRET 里面只有密码，请将下面的 "你的阿里云账号名" 替换为实际的账号名
-              echo "${{ secrets.DESTINATION_CREDENTIAL }}" | skopeo login --username "你的阿里云账号名" --password-stdin ${{ github.event.inputs.destination }}
-            fi
+          # 1. 登录目标仓库 (阿里云) - 严格按照 username:password 格式截取
+          if [ -n "$DEST_CRED" ]; then
+            DEST_USER="${DEST_CRED%%:*}"
+            DEST_PASS="${DEST_CRED#*:}"
+            skopeo login -u "$DEST_USER" -p "$DEST_PASS" "$DEST_REG"
           fi
 
-          # 核心修复：通过 --format docker 过滤掉阿里云不支持的 OCI 空清单格式
-          skopeo copy --format docker --all \
-            docker://${{ github.event.inputs.source }}/${{ github.event.inputs.source_repo }} \
-            docker://${{ github.event.inputs.destination }}/${{ github.event.inputs.destination_repo }}
+          # 2. 登录源仓库 (如果配置了凭证)
+          if [ -n "$SRC_CRED" ]; then
+            SRC_USER="${SRC_CRED%%:*}"
+            SRC_PASS="${SRC_CRED#*:}"
+            skopeo login -u "$SRC_USER" -p "$SRC_PASS" "$SRC_REG"
+          fi
+
+          # 3. 核心修复：
+          # 去掉 --all，指定 amd64 架构，直接绕过引起阿里云报错的 OCI 空清单 (Attestation)
+          skopeo copy --override-os linux --override-arch amd64 \
+            "docker://${SRC_REG}/${SRC_REPO}" \
+            "docker://${DEST_REG}/${DEST_REPO}"
